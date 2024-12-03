@@ -39,6 +39,23 @@ export default function HomePage() {
     };
 
     checkUpdate();
+
+    // 注册Service Worker
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").then(
+          (registration) => {
+            console.log(
+              "ServiceWorker registration successful:",
+              registration.scope
+            );
+          },
+          (err) => {
+            console.error("ServiceWorker registration failed:", err);
+          }
+        );
+      });
+    }
   }, []);
 
   const handleUpdate = () => {
