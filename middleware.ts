@@ -40,9 +40,10 @@ export async function middleware(request: NextRequest) {
 
     // 验证access token是否有效
     if (accessToken !== ACCESS_TOKEN) {
-      // 清除无效的access token并重定向到token页面
+      // 清除无效的两个token并重定向到token页面
       const response = NextResponse.redirect(new URL("/token", request.url));
       response.cookies.delete("access_token");
+      response.cookies.delete("access_token_client");
       return response;
     }
   }
