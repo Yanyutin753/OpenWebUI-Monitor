@@ -16,6 +16,7 @@ const geistMono = localFont({
 export const metadata = {
   title: "OpenWebUI Monitor",
   description: "Monitor and analyze your OpenWebUI usage data",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
