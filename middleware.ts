@@ -7,13 +7,12 @@ const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 只验证 inlet/outlet/test API 请求
+  // API 请求验证
   if (
     pathname.startsWith("/api/v1/inlet") ||
     pathname.startsWith("/api/v1/outlet") ||
     pathname.startsWith("/api/v1/models/test")
   ) {
-    // API 请求验证
     if (!API_KEY) {
       console.error("未设置 API_KEY 环境变量");
       return NextResponse.json({ error: "服务器配置错误" }, { status: 500 });
@@ -28,34 +27,38 @@ export async function middleware(request: NextRequest) {
     }
 
     return NextResponse.next();
-  } else if (!pathname.startsWith("/api/")) {
-    // 页面访问验证
-    if (!ACCESS_TOKEN) {
-      console.error("未设置 ACCESS_TOKEN 环境变量");
-      return NextResponse.json({ error: "服务器配置错误" }, { status: 500 });
-    }
-
-    // 如果是令牌验证页面，直接允许访问
-    if (pathname === "/token") {
-      return NextResponse.next();
-    }
-
-    // 添加 no-store 和 no-cache 头，防止 Cloudflare 缓存
-    const response = NextResponse.next();
-    response.headers.set(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate"
-    );
-    response.headers.set("Pragma", "no-cache");
-    response.headers.set("Expires", "0");
-
-    return response;
   }
 
-  return NextResponse.next();
+  // 页面访问验证
+  if (!pathname.startsWith("/api/") && pathname !== "/token") {
+    const sessionToken = request.cookies.get("session_token")?.value;
+
+    if (!sessionToken) {
+      // 重定向到token页面
+      return NextResponse.redirect(new URL("/token", request.url));
+    }
+
+    // 验证session token是否有效
+    if (sessionToken !== ACCESS_TOKEN) {
+      // 清除无效的session token并重定向到token页面
+      const response = NextResponse.redirect(new URL("/token", request.url));
+      response.cookies.delete("session_token");
+      return response;
+    }
+  }
+
+  // 添加缓存控制头
+  const response = NextResponse.next();
+  response.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate"
+  );
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+
+  return response;
 }
 
-// 配置中间件匹配的路由
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

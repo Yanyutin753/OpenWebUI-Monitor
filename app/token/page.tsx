@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Input, Button, message } from "antd";
-import { useRouter } from "next/navigation";
+import { message } from "antd";
 import { Button as CustomButton } from "../components/ui/Button";
 
 export default function TokenPage() {
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const [showToken, setShowToken] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,14 +19,13 @@ export default function TokenPage() {
 
     setLoading(true);
     try {
-      // 将令牌存储在 localStorage 中而不是 cookie
-      localStorage.setItem("access_token", token);
-
-      // 尝试访问 API 验证令牌
-      const res = await fetch("/api/config", {
+      // 验证令牌
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({ token }),
       });
 
       if (res.ok) {
@@ -38,12 +35,10 @@ export default function TokenPage() {
         }, 500);
       } else {
         message.error("无效的访问令牌");
-        localStorage.removeItem("access_token");
       }
     } catch (error) {
       console.error("验证失败:", error);
       message.error("验证失败");
-      localStorage.removeItem("access_token");
     } finally {
       setLoading(false);
     }
