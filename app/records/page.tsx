@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Table, Button, message, DatePicker, Select, Space } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { FilterValue, SorterResult } from "antd/es/table/interface";
@@ -100,7 +100,7 @@ export default function RecordsPage() {
     },
   ];
 
-  const fetchRecords = async (params: TableParams) => {
+  const fetchRecords = useCallback(async (params: TableParams) => {
     setLoading(true);
     try {
       const searchParams = new URLSearchParams();
@@ -154,11 +154,11 @@ export default function RecordsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchRecords(tableParams);
-  }, []);
+  }, [tableParams, fetchRecords]);
 
   const handleTableChange = (
     pagination: TablePaginationConfig,

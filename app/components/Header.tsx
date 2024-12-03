@@ -18,16 +18,11 @@ import { usePathname } from "next/navigation";
 
 export default function Header() {
   const pathname = usePathname();
-
-  // 如果是token页面，不显示Header
-  if (pathname === "/token") {
-    return null;
-  }
-
   const [apiKey, setApiKey] = useState("加载中...");
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const getAccessToken = () => {
     if (typeof document === "undefined") return null;
@@ -40,23 +35,58 @@ export default function Header() {
   };
 
   useEffect(() => {
-    const token = getAccessToken();
-    setAccessToken(token);
-
-    if (!token) {
-      setApiKey("未授权");
+    if (isRedirecting || pathname === "/token") {
       return;
     }
+
+    const token = getAccessToken();
+    if (!token) {
+      setApiKey("未授权");
+      setAccessToken(null);
+      if (pathname !== "/token") {
+        setIsRedirecting(true);
+        window.location.href = "/token";
+      }
+      return;
+    }
+
+    setAccessToken(token);
 
     fetch("/api/config", {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     })
-      .then((res) => res.json())
-      .then((data) => setApiKey(data.apiKey))
-      .catch(() => setApiKey("加载失败"));
-  }, []);
+      .then(async (res) => {
+        if (!res.ok) {
+          if (res.status === 401) {
+            throw new Error("unauthorized");
+          }
+          throw new Error("fetch failed");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setApiKey(data.apiKey);
+      })
+      .catch((error) => {
+        setApiKey("加载失败");
+        if (
+          error.message === "unauthorized" &&
+          !isRedirecting &&
+          pathname !== "/token"
+        ) {
+          setIsRedirecting(true);
+          document.cookie =
+            "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          window.location.href = "/token";
+        }
+      });
+  }, [pathname, isRedirecting]);
+
+  if (pathname === "/token") {
+    return null;
+  }
 
   const handleCopyApiKey = () => {
     const token = getAccessToken();

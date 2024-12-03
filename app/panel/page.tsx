@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Radio,
   Button,
@@ -154,7 +157,7 @@ export default function PanelPage() {
     },
   });
 
-  const fetchUsageData = async () => {
+  const fetchUsageData = useCallback(async () => {
     setLoading(true);
     try {
       const isFullRange = timeRange[0] === 0 && timeRange[1] === 100;
@@ -208,10 +211,9 @@ export default function PanelPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange, availableTimeRange]);
 
-  // 添加表格相关的函数
-  const fetchRecords = async (params: TableParams) => {
+  const fetchRecords = useCallback(async (params: TableParams) => {
     setTableLoading(true);
     try {
       const searchParams = new URLSearchParams();
@@ -251,7 +253,7 @@ export default function PanelPage() {
     } finally {
       setTableLoading(false);
     }
-  };
+  }, []);
 
   const handleTableChange = (
     pagination: TablePaginationConfig,
@@ -386,8 +388,17 @@ export default function PanelPage() {
 
   // 在现有的 useEffect 中添加表格数据的初始加载
   useEffect(() => {
-    fetchUsageData();
-    fetchRecords(tableParams);
+    const initializeData = async () => {
+      try {
+        await fetchUsageData();
+        await fetchRecords(tableParams);
+      } catch (error) {
+        console.error("初始化数据失败:", error);
+      }
+    };
+
+    initializeData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const pieData = usageData.models
@@ -404,51 +415,52 @@ export default function PanelPage() {
     }))
     .sort((a, b) => b.value - a.value);
 
-  const getPieOption = (metric: "cost" | "count") => {
-    const total = pieData.reduce((sum, item) => sum + item.value, 0);
+  const getPieOption = useCallback(
+    (metric: "cost" | "count") => {
+      const total = pieData.reduce((sum, item) => sum + item.value, 0);
 
-    // 按值排序并处理小比例数据
-    const sortedData = [...pieData]
-      .sort((a, b) => b.value - a.value)
-      .reduce((acc, curr) => {
-        const percentage = (curr.value / total) * 100;
-        if (percentage < 5) {
-          const otherIndex = acc.findIndex((item) => item.name === "其他");
-          if (otherIndex >= 0) {
-            acc[otherIndex].value += curr.value;
+      // 按值排序并处理小比例数据
+      const sortedData = [...pieData]
+        .sort((a, b) => b.value - a.value)
+        .reduce((acc, curr) => {
+          const percentage = (curr.value / total) * 100;
+          if (percentage < 5) {
+            const otherIndex = acc.findIndex((item) => item.name === "其他");
+            if (otherIndex >= 0) {
+              acc[otherIndex].value += curr.value;
+            } else {
+              acc.push({
+                name: "其他",
+                value: curr.value,
+              });
+            }
           } else {
             acc.push({
-              name: "其他",
+              name: curr.type,
               value: curr.value,
             });
           }
-        } else {
-          acc.push({
-            name: curr.type,
-            value: curr.value,
-          });
-        }
-        return acc;
-      }, [] as { name: string; value: number }[]);
+          return acc;
+        }, [] as { name: string; value: number }[]);
 
-    // 获取窗口宽度
-    const isSmallScreen = window.innerWidth < 640;
+      // 获取窗口宽度
+      const isSmallScreen = window.innerWidth < 640;
 
-    return {
-      tooltip: {
-        show: isSmallScreen,
-        trigger: "item",
-        backgroundColor: "rgba(255, 255, 255, 0.95)",
-        borderColor: "#eee",
-        borderWidth: 1,
-        padding: [12, 16],
-        textStyle: {
-          color: "#666",
-          fontSize: 13,
-        },
-        formatter: (params: any) => {
-          const percentage = ((params.value / total) * 100).toFixed(1);
-          return `
+      return {
+        tooltip: {
+          show: isSmallScreen,
+          trigger: "item",
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          borderColor: "#eee",
+          borderWidth: 1,
+          padding: [12, 16],
+          textStyle: {
+            color: "#666",
+            fontSize: 13,
+          },
+          formatter: (params: any) => {
+            const percentage = ((params.value / total) * 100).toFixed(1);
+            return `
             <div class="flex flex-col gap-1.5">
               <div class="font-medium text-gray-800">${params.name}</div>
               <div class="flex items-center gap-2">
@@ -471,229 +483,234 @@ export default function PanelPage() {
               </div>
             </div>
           `;
-        },
-        extraCssText:
-          "box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); border-radius: 6px;",
-      },
-      legend: {
-        show: isSmallScreen,
-        orient: "horizontal",
-        bottom: 0,
-        type: "scroll",
-        itemWidth: 15,
-        itemHeight: 15,
-        textStyle: {
-          fontSize: 12,
-          color: "#666",
-        },
-      },
-      series: [
-        {
-          name: metric === "cost" ? "消耗金额" : "使用次数",
-          type: "pie",
-          radius: isSmallScreen ? ["40%", "75%"] : ["50%", "80%"],
-          center: isSmallScreen ? ["50%", "40%"] : ["50%", "50%"],
-          avoidLabelOverlap: false,
-          itemStyle: {
-            borderRadius: 10,
-            shadowBlur: 4,
-            shadowColor: "rgba(0, 0, 0, 0.1)",
           },
-          label: {
-            show: !isSmallScreen,
-            position: "outside",
-            alignTo: "labelLine",
-            margin: 4,
-            formatter: (params: any) => {
-              const percentage = ((params.value / total) * 100).toFixed(1);
-              return [
-                `{name|${params.name}}`,
-                `{value|${
-                  metric === "cost"
-                    ? `¥${params.value.toFixed(4)}`
-                    : `${params.value}次`
-                }}`,
-                `{per|${percentage}%}`,
-              ].join("\n");
-            },
-            rich: {
-              name: {
-                fontSize: 12,
-                color: "#666",
-                padding: [0, 0, 2, 0],
-                fontWeight: 500,
-                width: 120,
-                overflow: "break",
-              },
-              value: {
-                fontSize: 11,
-                color: "#333",
-                padding: [2, 0],
-              },
-              per: {
-                fontSize: 11,
-                color: "#999",
-              },
-            },
-            lineHeight: 14,
-          },
-          labelLayout: {
-            hideOverlap: true,
-            moveOverlap: "shiftY",
-          },
-          labelLine: {
-            show: !isSmallScreen,
-            length: 15,
-            length2: 10,
-            minTurnAngle: 60,
-            maxSurfaceAngle: 60,
-            smooth: 0.2,
-          },
-          data: sortedData,
-          zlevel: 0,
-          padAngle: 2,
-          emphasis: {
-            scale: false,
-            scaleSize: 10,
-            focus: "self",
-            itemStyle: {
-              shadowBlur: 10,
-              shadowOffsetX: 0,
-              shadowColor: "rgba(0, 0, 0, 0.2)",
-            },
-            label: {
-              show: !isSmallScreen,
-            },
-            labelLine: {
-              show: !isSmallScreen,
-              lineStyle: {
-                width: 2,
-              },
-            },
-          },
-          select: {
-            disabled: true,
-          },
+          extraCssText:
+            "box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); border-radius: 6px;",
         },
-      ],
-      graphic: [
-        {
-          type: "text",
-          left: "center",
-          top: isSmallScreen ? "35%" : "middle",
-          style: {
-            text:
-              metric === "cost"
-                ? `总计\n¥${total.toFixed(2)}`
-                : `总计\n${total}次`,
-            textAlign: "center",
-            fontSize: 14,
-            fontWeight: "bold",
-          },
-          zlevel: 1,
-        },
-      ],
-      animation: true,
-      animationDuration: 500,
-      universalTransition: true,
-    };
-  };
-
-  const getBarOption = (metric: "cost" | "count") => {
-    const isSmallScreen = window.innerWidth < 640;
-
-    return {
-      tooltip: {
-        show: false,
-      },
-      grid: {
-        top: "8%",
-        bottom: "12%",
-        left: "3%",
-        right: "3%",
-        containLabel: true,
-      },
-      xAxis: {
-        type: "category",
-        data: columnData.map((item) =>
-          item.nickname.length > 15
-            ? item.nickname.slice(0, 12) + "..."
-            : item.nickname
-        ),
-        axisLabel: {
-          inside: false,
-          color: "#666",
-          fontSize: 12,
-          rotate: 45,
-          interval: "auto",
-          hideOverlap: true,
-        },
-        axisTick: {
-          show: false,
-        },
-        axisLine: {
-          show: true,
-          lineStyle: {
-            color: "#ddd",
-          },
-        },
-        z: 10,
-      },
-      yAxis: {
-        type: "value",
-        name: metric === "cost" ? "消耗金额" : "使用次数",
-        axisLine: {
-          show: false,
-        },
-        axisTick: {
-          show: false,
-        },
-        axisLabel: {
-          color: "#999",
-        },
-      },
-      dataZoom: [
-        {
-          type: "inside",
-          start: 0,
-          end: Math.min(100, Math.max(100 * (15 / columnData.length), 30)),
-        },
-      ],
-      series: [
-        {
-          type: "bar",
-          itemStyle: {
-            color: "#5B9BD5",
-            borderRadius: [5, 5, 0, 0],
-          },
-          emphasis: {
-            itemStyle: {
-              color: "#3A75B0",
-            },
-          },
-          data: columnData.map((item) => item.value),
-          showBackground: true,
-          backgroundStyle: {
-            color: "rgba(180, 180, 180, 0.1)",
-          },
-          label: {
-            show: !isSmallScreen,
-            position: "top",
-            formatter: (params: any) => {
-              return metric === "cost"
-                ? `¥${params.value.toFixed(2)}`
-                : `${params.value}`;
-            },
+        legend: {
+          show: isSmallScreen,
+          orient: "horizontal",
+          bottom: 0,
+          type: "scroll",
+          itemWidth: 15,
+          itemHeight: 15,
+          textStyle: {
             fontSize: 12,
             color: "#666",
           },
         },
-      ],
-      animation: true,
-      animationDuration: 1000,
-      animationEasing: "cubicOut" as const,
-    };
-  };
+        series: [
+          {
+            name: metric === "cost" ? "消耗金额" : "使用次数",
+            type: "pie",
+            radius: isSmallScreen ? ["40%", "75%"] : ["50%", "80%"],
+            center: isSmallScreen ? ["50%", "40%"] : ["50%", "50%"],
+            avoidLabelOverlap: false,
+            itemStyle: {
+              borderRadius: 10,
+              shadowBlur: 4,
+              shadowColor: "rgba(0, 0, 0, 0.1)",
+            },
+            label: {
+              show: !isSmallScreen,
+              position: "outside",
+              alignTo: "labelLine",
+              margin: 4,
+              formatter: (params: any) => {
+                const percentage = ((params.value / total) * 100).toFixed(1);
+                return [
+                  `{name|${params.name}}`,
+                  `{value|${
+                    metric === "cost"
+                      ? `¥${params.value.toFixed(4)}`
+                      : `${params.value}次`
+                  }}`,
+                  `{per|${percentage}%}`,
+                ].join("\n");
+              },
+              rich: {
+                name: {
+                  fontSize: 12,
+                  color: "#666",
+                  padding: [0, 0, 2, 0],
+                  fontWeight: 500,
+                  width: 120,
+                  overflow: "break",
+                },
+                value: {
+                  fontSize: 11,
+                  color: "#333",
+                  padding: [2, 0],
+                },
+                per: {
+                  fontSize: 11,
+                  color: "#999",
+                },
+              },
+              lineHeight: 14,
+            },
+            labelLayout: {
+              hideOverlap: true,
+              moveOverlap: "shiftY",
+            },
+            labelLine: {
+              show: !isSmallScreen,
+              length: 15,
+              length2: 10,
+              minTurnAngle: 60,
+              maxSurfaceAngle: 60,
+              smooth: 0.2,
+            },
+            data: sortedData,
+            zlevel: 0,
+            padAngle: 2,
+            emphasis: {
+              scale: false,
+              scaleSize: 10,
+              focus: "self",
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: "rgba(0, 0, 0, 0.2)",
+              },
+              label: {
+                show: !isSmallScreen,
+              },
+              labelLine: {
+                show: !isSmallScreen,
+                lineStyle: {
+                  width: 2,
+                },
+              },
+            },
+            select: {
+              disabled: true,
+            },
+          },
+        ],
+        graphic: [
+          {
+            type: "text",
+            left: "center",
+            top: isSmallScreen ? "35%" : "middle",
+            style: {
+              text:
+                metric === "cost"
+                  ? `总计\n¥${total.toFixed(2)}`
+                  : `总计\n${total}次`,
+              textAlign: "center",
+              fontSize: 14,
+              fontWeight: "bold",
+            },
+            zlevel: 1,
+          },
+        ],
+        animation: true,
+        animationDuration: 500,
+        universalTransition: true,
+      };
+    },
+    [pieData]
+  );
+
+  const getBarOption = useCallback(
+    (metric: "cost" | "count") => {
+      const isSmallScreen = window.innerWidth < 640;
+
+      return {
+        tooltip: {
+          show: false,
+        },
+        grid: {
+          top: "8%",
+          bottom: "12%",
+          left: "3%",
+          right: "3%",
+          containLabel: true,
+        },
+        xAxis: {
+          type: "category",
+          data: columnData.map((item) =>
+            item.nickname.length > 15
+              ? item.nickname.slice(0, 12) + "..."
+              : item.nickname
+          ),
+          axisLabel: {
+            inside: false,
+            color: "#666",
+            fontSize: 12,
+            rotate: 45,
+            interval: "auto",
+            hideOverlap: true,
+          },
+          axisTick: {
+            show: false,
+          },
+          axisLine: {
+            show: true,
+            lineStyle: {
+              color: "#ddd",
+            },
+          },
+          z: 10,
+        },
+        yAxis: {
+          type: "value",
+          name: metric === "cost" ? "消耗金额" : "使用次数",
+          axisLine: {
+            show: false,
+          },
+          axisTick: {
+            show: false,
+          },
+          axisLabel: {
+            color: "#999",
+          },
+        },
+        dataZoom: [
+          {
+            type: "inside",
+            start: 0,
+            end: Math.min(100, Math.max(100 * (15 / columnData.length), 30)),
+          },
+        ],
+        series: [
+          {
+            type: "bar",
+            itemStyle: {
+              color: "#5B9BD5",
+              borderRadius: [5, 5, 0, 0],
+            },
+            emphasis: {
+              itemStyle: {
+                color: "#3A75B0",
+              },
+            },
+            data: columnData.map((item) => item.value),
+            showBackground: true,
+            backgroundStyle: {
+              color: "rgba(180, 180, 180, 0.1)",
+            },
+            label: {
+              show: !isSmallScreen,
+              position: "top",
+              formatter: (params: any) => {
+                return metric === "cost"
+                  ? `¥${params.value.toFixed(2)}`
+                  : `${params.value}`;
+              },
+              fontSize: 12,
+              color: "#666",
+            },
+          },
+        ],
+        animation: true,
+        animationDuration: 1000,
+        animationEasing: "cubicOut" as const,
+      };
+    },
+    [columnData]
+  );
 
   // 处理图表实例
   const onChartReady = (instance: ECharts) => {
@@ -729,17 +746,19 @@ export default function PanelPage() {
     const handleResize = () => {
       if (chartRef.current) {
         chartRef.current.resize();
-        chartRef.current.setOption(getPieOption(pieMetric));
+        const pieOptions = getPieOption(pieMetric);
+        chartRef.current.setOption(pieOptions);
       }
       if (barChartRef.current) {
         barChartRef.current.resize();
-        barChartRef.current.setOption(getBarOption(barMetric));
+        const barOptions = getBarOption(barMetric);
+        barChartRef.current.setOption(barOptions);
       }
     };
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [pieMetric, pieData, barMetric]);
+  }, [pieMetric, barMetric, getPieOption, getBarOption]);
 
   return (
     <>

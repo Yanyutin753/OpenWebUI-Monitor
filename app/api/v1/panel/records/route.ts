@@ -2,10 +2,13 @@ import { pool } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { PoolClient } from "pg";
 
-export async function GET(req: Request) {
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
+export async function GET(request: Request) {
   let client: PoolClient | null = null;
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("pageSize") || "10");
     const sortField = searchParams.get("sortField");
