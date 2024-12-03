@@ -14,18 +14,9 @@ export async function POST(request: NextRequest) {
     // 创建响应对象
     const response = NextResponse.json({ success: true }, { status: 200 });
 
-    // 设置两个cookie：一个用于API访问，一个用于前端读取
+    // 设置单个 cookie，允许前端 JavaScript 读取
     response.cookies.set({
       name: "access_token",
-      value: token,
-      httpOnly: true, // 用于API请求验证
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-    });
-
-    response.cookies.set({
-      name: "access_token_client",
       value: token,
       httpOnly: false, // 允许前端JavaScript读取
       secure: process.env.NODE_ENV === "production",

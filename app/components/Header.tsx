@@ -34,7 +34,7 @@ export default function Header() {
     return (
       document.cookie
         .split("; ")
-        .find((row) => row.startsWith("access_token_client="))
+        .find((row) => row.startsWith("access_token="))
         ?.split("=")[1] || null
     );
   };
@@ -73,8 +73,6 @@ export default function Header() {
   };
 
   const handleLogout = () => {
-    document.cookie =
-      "access_token_client=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie =
       "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     window.location.href = "/token";
