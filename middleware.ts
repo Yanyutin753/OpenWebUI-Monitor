@@ -31,18 +31,18 @@ export async function middleware(request: NextRequest) {
 
   // 页面访问验证
   if (!pathname.startsWith("/api/") && pathname !== "/token") {
-    const sessionToken = request.cookies.get("session_token")?.value;
+    const accessToken = request.cookies.get("access_token")?.value;
 
-    if (!sessionToken) {
+    if (!accessToken) {
       // 重定向到token页面
       return NextResponse.redirect(new URL("/token", request.url));
     }
 
-    // 验证session token是否有效
-    if (sessionToken !== ACCESS_TOKEN) {
-      // 清除无效的session token并重定向到token页面
+    // 验证access token是否有效
+    if (accessToken !== ACCESS_TOKEN) {
+      // 清除无效的access token并重定向到token页面
       const response = NextResponse.redirect(new URL("/token", request.url));
-      response.cookies.delete("session_token");
+      response.cookies.delete("access_token");
       return response;
     }
   }

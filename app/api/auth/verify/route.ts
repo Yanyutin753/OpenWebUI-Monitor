@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     // 设置会话cookie
     response.cookies.set({
-      name: "session_token",
+      name: "access_token",
       value: token,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
