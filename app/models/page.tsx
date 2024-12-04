@@ -233,6 +233,7 @@ export default function ModelsPage() {
                 width={32}
                 height={32}
                 className="rounded-full object-cover"
+                unoptimized
               />
             )}
             {record.testStatus && (
