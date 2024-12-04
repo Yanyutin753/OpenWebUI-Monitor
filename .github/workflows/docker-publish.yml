@@ -4,7 +4,14 @@ on:
   release:
     types: [published]
   pull_request:
-    branches: [main]
+    branches:
+      - main       
+  workflow_dispatch:   
+  push:
+    branches:
+      - main         
+    tags:
+      - v*         
 
 env:
   REGISTRY: ghcr.io
