@@ -38,7 +38,11 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#4f46e5" />
-
+        <meta
+          name="viewport"
+          content="width=device-width, height=device-height, initial-scale=1, viewport-fit=cover, maximum-scale=1"
+        />
+        <meta name="robots" content="noindex,nofollow" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <link rel="manifest" href="/manifest.json" />
       </head>
