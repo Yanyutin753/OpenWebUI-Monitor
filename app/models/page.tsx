@@ -125,10 +125,10 @@ export default function ModelsPage() {
           prevModels.map((model) =>
             model.id === id
               ? {
-                ...model,
-                input_price: Number(data.results[0].data.input_price),
-                output_price: Number(data.results[0].data.output_price),
-              }
+                  ...model,
+                  input_price: Number(data.results[0].data.input_price),
+                  output_price: Number(data.results[0].data.output_price),
+                }
               : model
           )
         );
@@ -227,12 +227,13 @@ export default function ModelsPage() {
             onClick={() => handleTestSingleModel(record)}
           >
             {record.imageUrl && (
-              <img
+              <Image
                 src={record.imageUrl}
                 alt={record.name}
                 width={32}
                 height={32}
                 className="rounded-full object-cover"
+                unoptimized
               />
             )}
             {record.testStatus && (
@@ -352,7 +353,8 @@ export default function ModelsPage() {
         }
 
         message.success(
-          `成功更新 ${data.results.filter((r: any) => r.success).length
+          `成功更新 ${
+            data.results.filter((r: any) => r.success).length
           } 个模型的价格`
         );
       } catch (err) {
